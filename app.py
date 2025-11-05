@@ -638,5 +638,74 @@ with gr.Blocks(title="🧬 Alzheimer Diagnosis & Prognosis Tool (RUO)") as demo:
                 result_pa,
             )
 
+# -----------------------------
+# 🔄 Warm-up / Preload Function
+# -----------------------------
+def warm_up_models():
+    """
+    Perform a dummy prediction for each model to initialize internal structures.
+    Prevents first-click errors in Gradio.
+    """
+    print("⚡ Warming up models...")
+
+    # First classifier (pipeline)
+    try:
+        dummy_df = pd.DataFrame([[65, 16, 25, 20, 3, 5, "male", 1]], columns=FIRST_CLASSIFIER_FEATURES)
+        _ = classifier_1_model.predict_proba(dummy_df)
+        print("✅ First classifier warmed up")
+    except Exception as e:
+        print(f"⚠️ First classifier warm-up failed: {e}")
+
+    # Basic classifier
+    try:
+        dummy_vals = [65, 26, 3, 5, 16, 1, 1, 45, 25, 20]
+        X_df = build_df_from_order(dummy_vals, BASIC_FEATURE_ORDER)
+        numeric_cols = [c for c in BASIC_FEATURE_ORDER if c not in ("PTGENDER", "APOE4")]
+        X_scaled = np.hstack([classifier_basic_preprocessor.transform(X_df[numeric_cols]), X_df[["PTGENDER", "APOE4"]].to_numpy()])
+        _ = classifier_basic_model.predict_proba(X_scaled)
+        print("✅ Basic classifier warmed up")
+    except Exception as e:
+        print(f"⚠️ Basic classifier warm-up failed: {e}")
+
+    # Advanced classifier
+    try:
+        dummy_input = np.zeros((1, len(ADVANCED_FEATURE_ORDER)))
+        X_num = dummy_input[:, :-2]  # exclude categorical
+        X_cat = dummy_input[:, -2:]  # last 2 are categorical
+        X_scaled = np.hstack([classifier_advanced_preprocessor.transform(X_num), X_cat])
+        _ = classifier_advanced_model.predict_proba(X_scaled)
+        print("✅ Advanced classifier warmed up")
+    except Exception as e:
+        print(f"⚠️ Advanced classifier warm-up failed: {e}")
+
+    # Progression basic
+    try:
+        dummy_dict = {k: 0 for k in PROGRESS_BASIC_FEATURES}
+        dummy_dict["PTGENDER"] = 1
+        X_processed = preprocess_for_prediction(dummy_dict, PROGRESS_BASIC_FEATURES, PROGRESS_BASIC_NUMERIC_COLS, PROGRESS_BASIC_CATEGORICAL_COLS, progress_basic_scaler)
+        _ = progress_basic_model.predict_proba(X_processed)
+        print("✅ Progression basic model warmed up")
+    except Exception as e:
+        print(f"⚠️ Progression basic warm-up failed: {e}")
+
+    # Progression advanced
+    try:
+        dummy_dict = {k: 0 for k in PROGRESS_ADVANCED_FEATURES}
+        dummy_dict["PTGENDER"] = 1
+        X_processed = preprocess_for_prediction(dummy_dict, PROGRESS_ADVANCED_FEATURES, PROGRESS_ADVANCED_NUMERIC_COLS, PROGRESS_ADVANCED_CATEGORICAL_COLS, progress_advanced_scaler)
+        _ = progress_advanced_model.predict_proba(X_processed)
+        print("✅ Progression advanced model warmed up")
+    except Exception as e:
+        print(f"⚠️ Progression advanced warm-up failed: {e}")
+
+    print("⚡ All models warmed up successfully!")
+
+# -----------------------------
+# Main Launch
+# -----------------------------
 if __name__ == "__main__":
+    # Warm up models BEFORE launching Gradio
+    warm_up_models()
+
+    # Launch Gradio app
     demo.launch(server_name="0.0.0.0", server_port=7860, share=False)
